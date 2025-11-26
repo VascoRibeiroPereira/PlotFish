@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8" />
+  <title>PlotFish – Resolver um problema da história</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#121826" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      max-width: 900px;
+      margin-inline: auto;
+      background: #0b1220;
+      color: #e5e7eb;
+    }
+    h1, h2, h3 {
+      margin: 0 0 8px;
+    }
+    h1 {
+      font-size: 1.6rem;
+    }
+    h2 {
+      font-size: 1.2rem;
+      margin-top: 16px;
+    }
+    p {
+      margin: 4px 0 8px;
+      font-size: 0.95rem;
+      color: #cbd5f5;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(59,130,246,0.2);
+      color: #bfdbfe;
+      font-size: 0.8rem;
+      margin-bottom: 4px;
+    }
+    .card {
+      background: radial-gradient(circle at top left, #1f2937, #020617);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      border: 1px solid rgba(148,163,184,0.2);
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      margin-top: 6px;
+      color: #e5e7eb;
+    }
+    textarea, input, select {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 2px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 0.9rem;
+    }
+    textarea {
+      min-height: 60px;
+      resize: vertical;
+    }
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .primary {
+      background: linear-gradient(to right, #3b82f6, #6366f1);
+      color: white;
+    }
+    .secondary {
+      background: #111827;
+      color: #e5e7eb;
+      border: 1px solid #4b5563;
+    }
+    .danger {
+      background: #b91c1c;
+      color: white;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(148,163,184,0.2);
+      font-size: 0.75rem;
+      margin-right: 4px;
+    }
+    .area-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .area-title-main {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    .area-subtitle {
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+    .hypothesis-card {
+      border-radius: 8px;
+      border: 1px solid rgba(148,163,184,0.3);
+      padding: 8px;
+      margin-top: 8px;
+      background: rgba(15,23,42,0.8);
+    }
+    .hypothesis-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+    @media (min-width: 640px) {
+      .hypothesis-row {
+        grid-template-columns: 1.2fr 0.9fr 0.9fr 0.9fr;
+      }
+    }
+    .hypothesis-label {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      margin-top: 4px;
+      margin-bottom: 2px;
+    }
+    #summaryBox {
+      min-height: 160px;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.85rem;
+    }
+    .small-hint {
+      font-size: 0.78rem;
+      color: #9ca3af;
+    }
+    header {
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(148,163,184,0.3);
+    }
+    .logo-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .logo-mark {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-row">
+      <div>
+        <div class="badge">MVP · modo 1</div>
+        <h1>PlotFish</h1>
+        <p style="margin-bottom:4px;">
+          Ferramenta de brainstorming para autores de fantasia & sci-fi que querem
+          <strong>desbloquear problemas da história</strong> em vez de só sentir “isto não está a funcionar”.
+        </p>
+      </div>
+      <div class="logo-mark">🐟</div>
+    </div>
+    <p class="small-hint">
+      Começa por descrever o problema, depois explora hipóteses por área (personagens, enredo, mundo, etc.).
+      No final, gera um resumo para reveres ou reescreveres a cena.
+    </p>
+  </header>
+
+  <!-- PASSO 1 -->
+  <section class="card">
+    <h2>Passo 1 · Qual é o problema da história?</h2>
+    <label>
+      Descreve, em linguagem simples, o que não está a funcionar.
+      <textarea id="problemDescription" placeholder="Ex.: O clímax da história é morno; quando a personagem X morre, não sinto impacto; o meio do livro arrasta."></textarea>
+    </label>
+
+    <label>
+      Tipo de problema (opcional)
+      <select id="problemType">
+        <option value="">Não tenho a certeza / prefiro não escolher</option>
+        <option value="Cena específica">Cena específica</option>
+        <option value="Arco de personagem">Arco de personagem</option>
+        <option value="Clímax / final">Clímax / final</option>
+        <option value="Ritmo / enchimento">Ritmo / enchimento</option>
+        <option value="Mundo / magia / tecnologia">Mundo / magia / tecnologia</option>
+      </select>
+    </label>
+  </section>
+
+  <!-- PASSO 2 -->
+  <section>
+    <h2>Passo 2 · Explora onde o problema pode estar</h2>
+    <p class="small-hint">
+      Usa as áreas abaixo como “espinhas” do teu fishbone. Para cada uma que fizer sentido,
+      escreve hipóteses e, se quiseres, aprofunda com até 3 “porquês”.
+    </p>
+
+    <div id="areasContainer"></div>
+  </section>
+
+  <!-- PASSO 3 -->
+  <section class="card" style="margin-top:16px;">
+    <h2>Passo 3 · Resumo para revisão</h2>
+    <p class="small-hint">
+      Gera um texto com o problema, as áreas onde suspeitas que está a falha e as hipóteses que
+      queres explorar. Copia para o teu editor de texto e trabalha a partir daí.
+    </p>
+    <button class="primary" type="button" onclick="generateSummary()">
+      🧾 Gerar resumo
+    </button>
+    <button class="secondary" type="button" onclick="copySummary()">
+      📋 Copiar resumo
+    </button>
+    <button class="secondary" type="button" onclick="clearAll()">
+      🔄 Limpar tudo
+    </button>
+
+    <label style="margin-top:10px;">
+      Resultado
+      <textarea id="summaryBox" readonly></textarea>
+    </label>
+  </section>
+
+  <script>
+    "use strict";
+
+    // Definição das áreas (espinhas)
+    const AREAS = [
+      {
+        id: "personagens",
+        title: "Personagens",
+        subtitle: "Motivações, decisões, reações, arcos.",
+        hints: [
+          "As motivações estão claras?",
+          "As decisões fazem sentido com quem a personagem é?",
+          "Há algo que devia doer mais (ou menos)?"
+        ]
+      },
+      {
+        id: "enredo",
+        title: "Enredo (plot)",
+        subtitle: "Acontecimentos, viragens, consequência dos atos.",
+        hints: [
+          "As causas e efeitos estão claros?",
+          "Há atalhos convenientes a mais?",
+          "O clímax foi preparado ao longo da história?"
+        ]
+      },
+      {
+        id: "conflito",
+        title: "Conflito & stakes",
+        subtitle: "O que está em jogo, o que se perde se falhar.",
+        hints: [
+          "O leitor sente o que está em risco?",
+          "O protagonista tem mesmo algo a perder?",
+          "Se falhar, acontece algo significativo?"
+        ]
+      },
+      {
+        id: "mundo",
+        title: "Mundo / magia / tecnologia",
+        subtitle: "Regras, custo, limites, coerência interna.",
+        hints: [
+          "As regras são claras o suficiente?",
+          "Há magia/tech a resolver tudo sem custo?",
+          "O mundo reage às ações das personagens?"
+        ]
+      },
+      {
+        id: "tema",
+        title: "Tema & emoção",
+        subtitle: "Mensagem, tom, impacto emocional.",
+        hints: [
+          "Que emoção querias que o leitor sentisse aqui?",
+          "A cena está alinhada com o tema da história?",
+          "Há conflito interno suficiente?"
+        ]
+      },
+      {
+        id: "ritmo",
+        title: "Ritmo & estrutura",
+        subtitle: "Partes que arrastam, saltos bruscos, enchimento.",
+        hints: [
+          "Há cenas que repetem a mesma função?",
+          "Chegaste cedo demais ou tarde demais ao ponto chave?",
+          "Há blocos de info que podiam ser divididos?"
+        ]
+      }
+    ];
+
+    // Inicialização da UI das áreas
+    function initAreas() {
+      const container = document.getElementById("areasContainer");
+      container.innerHTML = "";
+
+      AREAS.forEach(area => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.dataset.areaId = area.id;
+
+        card.innerHTML = `
+          <div class="area-header">
+            <div>
+              <div class="area-title-main">${area.title}</div>
+              <div class="area-subtitle">${area.subtitle}</div>
+            </div>
+            <button type="button" class="secondary" onclick="addHypothesis('${area.id}')">
+              + Adicionar hipótese
+            </button>
+          </div>
+          <p class="small-hint">
+            Sugestões para pensar: ${area.hints.join(" · ")}
+          </p>
+          <div class="small-hint">
+            Usa esta área se achas que o problema pode estar aqui. Podes adicionar várias hipóteses
+            e aprofundar com até 3 “porquês” cada.
+          </div>
+          <div class="hypotheses-container" id="hypotheses-${area.id}"></div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // Adiciona um bloco de hipótese + porquês a uma área
+    function addHypothesis(areaId) {
+      const container = document.getElementById(`hypotheses-${areaId}`);
+      if (!container) return;
+
+      const hypIndex = container.children.length + 1;
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "hypothesis-card";
+
+      wrapper.innerHTML = `
+        <div class="hypothesis-row">
+          <div>
+            <div class="hypothesis-label">Hipótese #${hypIndex}</div>
+            <textarea
+              placeholder="Ex.: O protagonista aceita o risco demasiado depressa."
+              class="hypothesis-text"
+            ></textarea>
+          </div>
+          <div>
+            <div class="hypothesis-label">Porquê 1 (o que pode estar por trás?)</div>
+            <textarea class="why1" placeholder="Ex.: Porque não mostrei o que ele tem a perder."></textarea>
+          </div>
+          <div>
+            <div class="hypothesis-label">Porquê 2 (e isso porquê?)</div>
+            <textarea class="why2" placeholder="Ex.: Porque nunca foquei a vida 'normal' dele."></textarea>
+          </div>
+          <div>
+            <div class="hypothesis-label">Porquê 3 (há algo ainda mais fundo?)</div>
+            <textarea class="why3" placeholder="Ex.: Porque não defini claramente o medo central dele."></textarea>
+          </div>
+        </div>
+        <button type="button" class="danger" style="margin-top:6px;" onclick="removeHypothesis(this)">
+          Remover hipótese
+        </button>
+      `;
+
+      container.appendChild(wrapper);
+    }
+
+    function removeHypothesis(buttonEl) {
+      const card = buttonEl.closest(".hypothesis-card");
+      if (card && card.parentElement) {
+        card.parentElement.removeChild(card);
+      }
+    }
+
+    // Gera o resumo de tudo
+    function generateSummary() {
+      const problem = document.getElementById("problemDescription").value.trim();
+      const type = document.getElementById("problemType").value;
+
+      if (!problem) {
+        alert("Começa por descrever o problema da história no Passo 1.");
+        return;
+      }
+
+      let lines = [];
+
+      lines.push("PLOT FISH – RESUMO DO BRAINSTORM");
+      lines.push("=".repeat(40));
+      lines.push("");
+
+      lines.push("Problema descrito:");
+      lines.push(problem);
+      lines.push("");
+
+      if (type) {
+        lines.push(`Tipo de problema: ${type}`);
+        lines.push("");
+      }
+
+      lines.push("Áreas exploradas e hipóteses:");
+      lines.push("");
+
+      AREAS.forEach(area => {
+        const container = document.getElementById(`hypotheses-${area.id}`);
+        if (!container) return;
+        const cards = Array.from(container.getElementsByClassName("hypothesis-card"));
+        if (cards.length === 0) return;
+
+        lines.push(`- ${area.title}:`);
+        cards.forEach((card, idx) => {
+          const hyp = card.querySelector(".hypothesis-text")?.value.trim();
+          const why1 = card.querySelector(".why1")?.value.trim();
+          const why2 = card.querySelector(".why2")?.value.trim();
+          const why3 = card.querySelector(".why3")?.value.trim();
+
+          if (!hyp && !why1 && !why2 && !why3) return;
+
+          lines.push(`  • Hipótese ${idx + 1}: ${hyp || "(não preenchido)"}`);
+
+          if (why1) lines.push(`      – Porquê 1: ${why1}`);
+          if (why2) lines.push(`      – Porquê 2: ${why2}`);
+          if (why3) lines.push(`      – Porquê 3: ${why3}`);
+        });
+        lines.push("");
+      });
+
+      lines.push("Notas para revisão:");
+      lines.push(
+        "• Olhar para as hipóteses com mais 'porquês' preenchidos – podem indicar causas mais profundas."
+      );
+      lines.push(
+        "• Escolher 1–3 mudanças concretas para testar (reescrever uma cena, clarificar motivações, alterar stakes, etc.)."
+      );
+
+      const summaryText = lines.join("\n");
+      document.getElementById("summaryBox").value = summaryText;
+    }
+
+    // Copia o resumo para clipboard
+    function copySummary() {
+      const summaryEl = document.getElementById("summaryBox");
+      const text = summaryEl.value;
+      if (!text.trim()) {
+        alert("Ainda não há resumo para copiar. Gera primeiro o resumo.");
+        return;
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(() => {
+            alert("Resumo copiado. Cola no teu editor de texto ou notas.");
+          })
+          .catch(err => {
+            console.error("Erro a copiar para clipboard", err);
+            fallbackCopy(text);
+          });
+      } else {
+        fallbackCopy(text);
+      }
+    }
+
+    function fallbackCopy(text) {
+      const ok = window.prompt(
+        "Copia manualmente o texto (Ctrl+C / Command+C) e depois Enter:",
+        text
+      );
+      if (!ok) {
+        // nada
+      }
+    }
+
+    // Limpar tudo
+    function clearAll() {
+      if (!confirm("Queres mesmo limpar tudo? Isto apaga o problema e todas as hipóteses.")) return;
+      document.getElementById("problemDescription").value = "";
+      document.getElementById("problemType").value = "";
+      document.getElementById("summaryBox").value = "";
+      initAreas();
+    }
+
+    // Inicialização
+    initAreas();
+  </script>
+</body>
+</html>
