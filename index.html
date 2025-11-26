@@ -488,177 +488,191 @@
 
     // --- Imagem fishbone (6 ramos fixos, espelho) ---
     function generateFishboneImage() {
-      const problem = document.getElementById("problemDescription").value.trim();
-      if (!problem) {
-        alert("Para gerar o fishbone, primeiro descreve o problema no Passo 1.");
-        return;
-      }
+  const problem = document.getElementById("problemDescription").value.trim();
+  if (!problem) {
+    alert("Para gerar o fishbone, primeiro descreve o problema no Passo 1.");
+    return;
+  }
 
-      // causas finais por área (último porquê preenchido ou hipótese)
-      const branches = AREAS.map(area => {
-        const container = document.getElementById(`hypotheses-${area.id}`);
-        const causes = [];
-        if (container) {
-          const cards = Array.from(container.getElementsByClassName("hypothesis-card"));
-          cards.forEach(card => {
-            const hyp  = (card.querySelector(".hypothesis-text")?.value || "").trim();
-            const why1 = (card.querySelector(".why1")?.value || "").trim();
-            const why2 = (card.querySelector(".why2")?.value || "").trim();
-            const why3 = (card.querySelector(".why3")?.value || "").trim();
+  // Helper para limitar X dentro da imagem
+  function clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+  }
 
-            let cause = why3 || why2 || why1 || hyp;
-            if (!cause) return;
+  // causas finais por área (último porquê preenchido ou hipótese)
+  const branches = AREAS.map(area => {
+    const container = document.getElementById(`hypotheses-${area.id}`);
+    const causes = [];
+    if (container) {
+      const cards = Array.from(container.getElementsByClassName("hypothesis-card"));
+      cards.forEach(card => {
+        const hyp  = (card.querySelector(".hypothesis-text")?.value || "").trim();
+        const why1 = (card.querySelector(".why1")?.value || "").trim();
+        const why2 = (card.querySelector(".why2")?.value || "").trim();
+        const why3 = (card.querySelector(".why3")?.value || "").trim();
 
-            const MAX_CHARS = 80;
-            if (cause.length > MAX_CHARS) cause = cause.slice(0, MAX_CHARS) + "…";
-            causes.push(cause);
-          });
-        }
-        return { title: area.title, causes };
+        let cause = why3 || why2 || why1 || hyp;
+        if (!cause) return;
+
+        const MAX_CHARS = 80;
+        if (cause.length > MAX_CHARS) cause = cause.slice(0, MAX_CHARS) + "…";
+        causes.push(cause);
       });
+    }
+    return { title: area.title, causes };
+  });
 
-      // espelho: 3 ramos em cima, 3 em baixo (ordem estável)
-      const topOrder    = [0, 2, 4]; // Personagens, Conflito, Tema
-      const bottomOrder = [1, 3, 5]; // Enredo, Mundo, Ritmo
-      const pairs = [];
-      for (let i = 0; i < 3; i++) {
-        pairs.push({
-          top: branches[topOrder[i]],
-          bottom: branches[bottomOrder[i]]
-        });
-      }
+  // espelho: 3 ramos em cima, 3 em baixo (ordem estável)
+  const topOrder    = [0, 2, 4]; // Personagens, Conflito, Tema
+  const bottomOrder = [1, 3, 5]; // Enredo, Mundo, Ritmo
+  const pairs = [];
+  for (let i = 0; i < 3; i++) {
+    pairs.push({
+      top: branches[topOrder[i]],
+      bottom: branches[bottomOrder[i]]
+    });
+  }
 
-      // canvas grande (alta resolução)
-      const canvas = document.createElement("canvas");
-      canvas.width = 2400;
-      canvas.height = 1350;
-      const ctx = canvas.getContext("2d");
+  // canvas grande (alta resolução)
+  const canvas = document.createElement("canvas");
+  canvas.width = 2400;
+  canvas.height = 1350;
+  const ctx = canvas.getContext("2d");
 
-      // fundo
-      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      gradient.addColorStop(0, "#020617");
-      gradient.addColorStop(1, "#111827");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // fundo
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, "#020617");
+  gradient.addColorStop(1, "#111827");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // espinha central
-      const centerY = canvas.height / 2; // 675
-      const spineStartX = 260;
-      const spineEndX   = canvas.width - 620; // deixa MUITO espaço para o problema
+  // espinha central
+  const centerY = canvas.height / 2; // 675
+  const spineStartX = 260;
+  const spineEndX   = canvas.width - 620; // deixa espaço para o problema
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(spineStartX, centerY);
+  ctx.lineTo(spineEndX, centerY);
+  ctx.stroke();
+
+  // cabeça do peixe (Problema) com mais espaçamento
+  const problemMaxWidth = 650;
+  const headX = spineEndX + 40;
+  let headY = centerY - 120;
+
+  ctx.fillStyle = "#e5e7eb";
+  ctx.font = "bold 36px system-ui";
+  headY = drawWrappedText(ctx, "Problema:", headX, headY, problemMaxWidth, 42) + 32;
+
+  ctx.font = "28px system-ui";
+  drawWrappedText(ctx, problem, headX, headY, problemMaxWidth, 38);
+
+  // parâmetros dos ramos (3 colunas)
+  const pairCount = pairs.length;
+  const usableLength = spineEndX - spineStartX - 80;
+  const stepX = usableLength / (pairCount - 1 || 1);
+
+  const verticalOffsets = [220, 360, 500]; // distância ao centro
+  const maxTextWidth = 360;
+  const margin = 40;
+
+  ctx.lineWidth = 3;
+
+  for (let j = 0; j < pairCount; j++) {
+    const xSpine = spineStartX + stepX * j;
+    const offset = verticalOffsets[j] || verticalOffsets[verticalOffsets.length - 1];
+
+    // ramo de cima
+    const topBranch = pairs[j].top;
+    if (topBranch) {
+      const yTipTop = centerY - offset;
+      const xTipTop = xSpine - 260;
+
       ctx.strokeStyle = "#e5e7eb";
-      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.moveTo(spineStartX, centerY);
-      ctx.lineTo(spineEndX, centerY);
+      ctx.moveTo(xSpine, centerY);
+      ctx.lineTo(xTipTop, yTipTop);
       ctx.stroke();
 
-      // cabeça do peixe (problema) com espaço
-      const problemMaxWidth = 650;
-      const headX = spineEndX + 60;
-      let headY = centerY - 160;
+      // título do cluster
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "bold 22px system-ui";
+      let titleYTop = yTipTop - 18;
+      let titleXTop = xTipTop - maxTextWidth / 2;
+      titleXTop = clamp(titleXTop, margin, canvas.width - maxTextWidth - margin);
+      titleYTop = drawWrappedText(ctx, topBranch.title, titleXTop, titleYTop, maxTextWidth, 26) + 8;
 
+      // causas ao longo do ramo
       ctx.fillStyle = "#e5e7eb";
-      ctx.font = "bold 34px system-ui";
-      headY = drawWrappedText(ctx, "Problema:", headX, headY, problemMaxWidth, 40) + 24;
+      ctx.font = "18px system-ui";
+      const causesTop = topBranch.causes;
+      const nTop = causesTop.length;
+      for (let i = 0; i < nTop; i++) {
+        const t = (i + 1) / (nTop + 1);
+        const xAlong = xSpine + (xTipTop - xSpine) * t;
+        const yAlong = centerY + (yTipTop - centerY) * t;
 
-      ctx.font = "26px system-ui";
-      drawWrappedText(ctx, problem, headX, headY, problemMaxWidth, 34);
-
-      // parâmetros dos ramos (3 colunas)
-      const pairCount = pairs.length;
-      const usableLength = spineEndX - spineStartX - 80;
-      const stepX = usableLength / (pairCount - 1 || 1);
-
-      const verticalOffsets = [220, 360, 500]; // distância ao centro
-      const maxTextWidth = 360;
-
-      ctx.lineWidth = 3;
-
-      for (let j = 0; j < pairCount; j++) {
-        const xSpine = spineStartX + stepX * j;
-        const offset = verticalOffsets[j] || verticalOffsets[verticalOffsets.length - 1];
-
-        // ramo de cima
-        const topBranch = pairs[j].top;
-        if (topBranch) {
-          const yTipTop = centerY - offset;
-          const xTipTop = xSpine - 260;
-
-          ctx.strokeStyle = "#e5e7eb";
-          ctx.beginPath();
-          ctx.moveTo(xSpine, centerY);
-          ctx.lineTo(xTipTop, yTipTop);
-          ctx.stroke();
-
-          ctx.fillStyle = "#fbbf24";
-          ctx.font = "bold 22px system-ui";
-          let titleYTop = yTipTop - 18;
-          const titleXTop = xTipTop - maxTextWidth + 40;
-          titleYTop = drawWrappedText(ctx, topBranch.title, titleXTop, titleYTop, maxTextWidth, 26) + 8;
-
-          ctx.fillStyle = "#e5e7eb";
-          ctx.font = "18px system-ui";
-          const causesTop = topBranch.causes;
-          const nTop = causesTop.length;
-          for (let i = 0; i < nTop; i++) {
-            const t = (i + 1) / (nTop + 1);
-            const xAlong = xSpine + (xTipTop - xSpine) * t;
-            const yAlong = centerY + (yTipTop - centerY) * t;
-
-            const textY = yAlong - 10;
-            const textX = xAlong - maxTextWidth - 10;
-            drawWrappedText(ctx, "– " + causesTop[i], textX, textY, maxTextWidth, 22);
-          }
-        }
-
-        // ramo de baixo
-        const bottomBranch = pairs[j].bottom;
-        if (bottomBranch) {
-          const yTipBot = centerY + offset;
-          const xTipBot = xSpine - 260;
-
-          ctx.strokeStyle = "#e5e7eb";
-          ctx.beginPath();
-          ctx.moveTo(xSpine, centerY);
-          ctx.lineTo(xTipBot, yTipBot);
-          ctx.stroke();
-
-          ctx.fillStyle = "#fbbf24";
-          ctx.font = "bold 22px system-ui";
-          let titleYBot = yTipBot + 30;
-          const titleXBot = xTipBot - maxTextWidth + 40;
-          titleYBot = drawWrappedText(ctx, bottomBranch.title, titleXBot, titleYBot, maxTextWidth, 26) + 8;
-
-          ctx.fillStyle = "#e5e7eb";
-          ctx.font = "18px system-ui";
-          const causesBot = bottomBranch.causes;
-          const nBot = causesBot.length;
-          for (let i = 0; i < nBot; i++) {
-            const t = (i + 1) / (nBot + 1);
-            const xAlong = xSpine + (xTipBot - xSpine) * t;
-            const yAlong = centerY + (yTipBot - centerY) * t;
-
-            const textY = yAlong + 24;
-            const textX = xAlong - maxTextWidth - 10;
-            drawWrappedText(ctx, "– " + causesBot[i], textX, textY, maxTextWidth, 22);
-          }
-        }
-      }
-
-      // rodapé
-      ctx.font = "16px system-ui";
-      ctx.fillStyle = "#9ca3af";
-      ctx.fillText("PlotFish – brainstorming de problemas de história", 20, canvas.height - 30);
-
-      const dataUrl = canvas.toDataURL("image/png");
-      const imgEl = document.getElementById("fishboneImage");
-      const section = document.getElementById("fishboneSection");
-      imgEl.src = dataUrl;
-      section.style.display = "block";
-      if (section.scrollIntoView) {
-        section.scrollIntoView({ behavior: "smooth", block: "start" });
+        let textX = xAlong - maxTextWidth / 2;
+        textX = clamp(textX, margin, canvas.width - maxTextWidth - margin);
+        const textY = yAlong - 10;
+        drawWrappedText(ctx, "– " + causesTop[i], textX, textY, maxTextWidth, 22);
       }
     }
+
+    // ramo de baixo
+    const bottomBranch = pairs[j].bottom;
+    if (bottomBranch) {
+      const yTipBot = centerY + offset;
+      const xTipBot = xSpine - 260;
+
+      ctx.strokeStyle = "#e5e7eb";
+      ctx.beginPath();
+      ctx.moveTo(xSpine, centerY);
+      ctx.lineTo(xTipBot, yTipBot);
+      ctx.stroke();
+
+      // título do cluster
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "bold 22px system-ui";
+      let titleYBot = yTipBot + 30;
+      let titleXBot = xTipBot - maxTextWidth / 2;
+      titleXBot = clamp(titleXBot, margin, canvas.width - maxTextWidth - margin);
+      titleYBot = drawWrappedText(ctx, bottomBranch.title, titleXBot, titleYBot, maxTextWidth, 26) + 8;
+
+      // causas ao longo do ramo
+      ctx.fillStyle = "#e5e7eb";
+      ctx.font = "18px system-ui";
+      const causesBot = bottomBranch.causes;
+      const nBot = causesBot.length;
+      for (let i = 0; i < nBot; i++) {
+        const t = (i + 1) / (nBot + 1);
+        const xAlong = xSpine + (xTipBot - xSpine) * t;
+        const yAlong = centerY + (yTipBot - centerY) * t;
+
+        let textX = xAlong - maxTextWidth / 2;
+        textX = clamp(textX, margin, canvas.width - maxTextWidth - margin);
+        const textY = yAlong + 24;
+        drawWrappedText(ctx, "– " + causesBot[i], textX, textY, maxTextWidth, 22);
+      }
+    }
+  }
+
+  // rodapé
+  ctx.font = "16px system-ui";
+  ctx.fillStyle = "#9ca3af";
+  ctx.fillText("PlotFish – brainstorming de problemas de história", 20, canvas.height - 30);
+
+  const dataUrl = canvas.toDataURL("image/png");
+  const imgEl = document.getElementById("fishboneImage");
+  const section = document.getElementById("fishboneSection");
+  imgEl.src = dataUrl;
+  section.style.display = "block";
+  if (section.scrollIntoView) {
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
 
     // --- guardar / carregar sessão ---
     function exportState() {
