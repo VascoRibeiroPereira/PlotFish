@@ -15,7 +15,7 @@
       background: #0b1220;
       color: #e5e7eb;
     }
-    h1, h2, h3 { margin: 0 0 8px; }
+    h1, h2 { margin: 0 0 8px; }
     h1 { font-size: 1.6rem; }
     h2 { font-size: 1.2rem; margin-top: 16px; }
     p {
@@ -45,7 +45,7 @@
       margin-top: 6px;
       color: #e5e7eb;
     }
-    textarea, input, select {
+    textarea, select {
       width: 100%;
       box-sizing: border-box;
       margin-top: 2px;
@@ -113,7 +113,7 @@
     #summaryBox {
       min-height: 160px;
       white-space: pre-wrap;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
       font-size: 0.85rem;
     }
     .small-hint {
@@ -240,7 +240,7 @@
 
     const STORAGE_KEY = "plotfish_session_v1";
 
-    // Definição das áreas (espinhas)
+    // Áreas fixas (6 ramos)
     const AREAS = [
       {
         id: "personagens",
@@ -304,7 +304,7 @@
       }
     ];
 
-    // ---------- Construção das áreas ----------
+    // --- Construção das áreas ---
     function initAreas() {
       const container = document.getElementById("areasContainer");
       container.innerHTML = "";
@@ -384,7 +384,7 @@
       }
     }
 
-    // ---------- Resumo ----------
+    // --- Resumo ---
     function generateSummary() {
       const problem = document.getElementById("problemDescription").value.trim();
       const type = document.getElementById("problemType").value;
@@ -436,12 +436,8 @@
       });
 
       lines.push("Notas para revisão:");
-      lines.push(
-        "• Olhar para as hipóteses com mais 'porquês' preenchidos – podem indicar causas mais profundas."
-      );
-      lines.push(
-        "• Escolher 1–3 mudanças concretas para testar (reescrever uma cena, clarificar motivações, alterar stakes, etc.)."
-      );
+      lines.push("• Olhar para as hipóteses com mais 'porquês' preenchidos – podem indicar causas mais profundas.");
+      lines.push("• Escolher 1–3 mudanças concretas para testar (reescrever uma cena, clarificar motivações, alterar stakes, etc.).");
 
       document.getElementById("summaryBox").value = lines.join("\n");
     }
@@ -456,9 +452,7 @@
 
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text)
-          .then(() => {
-            alert("Resumo copiado. Cola no teu editor de texto ou notas.");
-          })
+          .then(() => alert("Resumo copiado. Cola no teu editor de texto ou notas."))
           .catch(err => {
             console.error("Erro a copiar para clipboard", err);
             fallbackCopy(text);
@@ -469,13 +463,10 @@
     }
 
     function fallbackCopy(text) {
-      window.prompt(
-        "Copia manualmente o texto (Ctrl+C / Command+C) e depois Enter:",
-        text
-      );
+      window.prompt("Copia manualmente o texto (Ctrl+C / Command+C) e depois Enter:", text);
     }
 
-    // ---------- Texto multlinha no canvas ----------
+    // --- helper para texto no canvas ---
     function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
       const words = text.split(" ");
       let line = "";
@@ -495,206 +486,192 @@
       return y;
     }
 
-    // ---------- Imagem fishbone ----------
-
+    // --- Imagem fishbone (6 ramos fixos, espelho) ---
     function generateFishboneImage() {
-  const problem = document.getElementById("problemDescription").value.trim();
-  if (!problem) {
-    alert("Para gerar o fishbone, primeiro descreve o problema no Passo 1.");
-    return;
-  }
+      const problem = document.getElementById("problemDescription").value.trim();
+      if (!problem) {
+        alert("Para gerar o fishbone, primeiro descreve o problema no Passo 1.");
+        return;
+      }
 
-  // Para cada área, recolher as "causas finais":
-  // último porquê preenchido (why3, depois why2, depois why1, se nada então a própria hipótese).
-  const branches = AREAS.map(area => {
-    const container = document.getElementById(`hypotheses-${area.id}`);
-    const causes = [];
+      // causas finais por área (último porquê preenchido ou hipótese)
+      const branches = AREAS.map(area => {
+        const container = document.getElementById(`hypotheses-${area.id}`);
+        const causes = [];
+        if (container) {
+          const cards = Array.from(container.getElementsByClassName("hypothesis-card"));
+          cards.forEach(card => {
+            const hyp  = (card.querySelector(".hypothesis-text")?.value || "").trim();
+            const why1 = (card.querySelector(".why1")?.value || "").trim();
+            const why2 = (card.querySelector(".why2")?.value || "").trim();
+            const why3 = (card.querySelector(".why3")?.value || "").trim();
 
-    if (container) {
-      const cards = Array.from(container.getElementsByClassName("hypothesis-card"));
-      cards.forEach(card => {
-        const hyp  = (card.querySelector(".hypothesis-text")?.value || "").trim();
-        const why1 = (card.querySelector(".why1")?.value || "").trim();
-        const why2 = (card.querySelector(".why2")?.value || "").trim();
-        const why3 = (card.querySelector(".why3")?.value || "").trim();
+            let cause = why3 || why2 || why1 || hyp;
+            if (!cause) return;
 
-        let cause = why3 || why2 || why1 || hyp;
-        if (!cause) return;
-
-        const MAX_CHARS = 80;
-        if (cause.length > MAX_CHARS) {
-          cause = cause.slice(0, MAX_CHARS) + "…";
+            const MAX_CHARS = 80;
+            if (cause.length > MAX_CHARS) cause = cause.slice(0, MAX_CHARS) + "…";
+            causes.push(cause);
+          });
         }
-        causes.push(cause);
+        return { title: area.title, causes };
       });
-    }
 
-    return {
-      title: area.title,
-      causes // [] se não houver
-    };
-  });
+      // espelho: 3 ramos em cima, 3 em baixo (ordem estável)
+      const topOrder    = [0, 2, 4]; // Personagens, Conflito, Tema
+      const bottomOrder = [1, 3, 5]; // Enredo, Mundo, Ritmo
+      const pairs = [];
+      for (let i = 0; i < 3; i++) {
+        pairs.push({
+          top: branches[topOrder[i]],
+          bottom: branches[bottomOrder[i]]
+        });
+      }
 
-  // Emparelhar em "espelho": 3 em cima, 3 em baixo
-  const pairs = [
-    { top: branches[0] || null, bottom: branches[3] || null },
-    { top: branches[1] || null, bottom: branches[4] || null },
-    { top: branches[2] || null, bottom: branches[5] || null }
-  ];
+      // canvas grande (alta resolução)
+      const canvas = document.createElement("canvas");
+      canvas.width = 2400;
+      canvas.height = 1350;
+      const ctx = canvas.getContext("2d");
 
-  // Canvas maior (melhor resolução, mais espaço)
-  const canvas = document.createElement("canvas");
-  canvas.width = 2400;
-  canvas.height = 1350;
-  const ctx = canvas.getContext("2d");
+      // fundo
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, "#020617");
+      gradient.addColorStop(1, "#111827");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Fundo
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, "#020617");
-  gradient.addColorStop(1, "#111827");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Espinha central
-  const centerY = canvas.height / 2; // 675
-  const spineStartX = 260;               // cauda
-  const spineEndX   = canvas.width - 520; // cabeça
-  ctx.strokeStyle = "#e5e7eb";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(spineStartX, centerY);
-  ctx.lineTo(spineEndX, centerY);
-  ctx.stroke();
-
-  // Cabeça (problema) com mais largura
-  ctx.fillStyle = "#e5e7eb";
-  ctx.font = "bold 32px system-ui";
-  const problemMaxWidth = 520;
-  let headY = centerY - 140;
-  headY = drawWrappedText(ctx, "Problema:", spineEndX + 40, headY, problemMaxWidth, 36) + 18;
-
-  ctx.font = "26px system-ui";
-  drawWrappedText(ctx, problem, spineEndX + 40, headY, problemMaxWidth, 32);
-
-  // Parâmetros dos ramos
-  const pairCount = pairs.length; // 3 colunas
-  const usableLength = spineEndX - spineStartX - 80;
-  const stepX = pairCount > 1 ? usableLength / (pairCount - 1) : usableLength / 2;
-
-  const verticalOffsets = [220, 360, 500]; // espelho
-  const maxTextWidth = 360;
-
-  ctx.lineWidth = 3;
-
-  for (let j = 0; j < pairCount; j++) {
-    const xSpine = spineStartX + stepX * j;
-    const offset = verticalOffsets[j] || verticalOffsets[verticalOffsets.length - 1];
-
-    // TOP branch
-    const topBranch = pairs[j].top;
-    if (topBranch) {
-      const yTipTop = centerY - offset;
-      const xTipTop = xSpine - 260;
-
-      // linha
+      // espinha central
+      const centerY = canvas.height / 2; // 675
+      const spineStartX = 260;
+      const spineEndX   = canvas.width - 620; // deixa MUITO espaço para o problema
       ctx.strokeStyle = "#e5e7eb";
+      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.moveTo(xSpine, centerY);
-      ctx.lineTo(xTipTop, yTipTop);
+      ctx.moveTo(spineStartX, centerY);
+      ctx.lineTo(spineEndX, centerY);
       ctx.stroke();
 
-      // título do cluster
-      ctx.fillStyle = "#fbbf24";
-      ctx.font = "bold 22px system-ui";
-      let titleYTop = yTipTop - 14;
-      const titleXTop = xTipTop - maxTextWidth + 40;
-      titleYTop = drawWrappedText(ctx, topBranch.title, titleXTop, titleYTop, maxTextWidth, 24) + 8;
+      // cabeça do peixe (problema) com espaço
+      const problemMaxWidth = 650;
+      const headX = spineEndX + 60;
+      let headY = centerY - 160;
 
-      // causas ao longo do ramo
       ctx.fillStyle = "#e5e7eb";
-      ctx.font = "18px system-ui";
-      const causesTop = topBranch.causes;
-      const nTop = causesTop.length;
+      ctx.font = "bold 34px system-ui";
+      headY = drawWrappedText(ctx, "Problema:", headX, headY, problemMaxWidth, 40) + 24;
 
-      for (let i = 0; i < nTop; i++) {
-        const t = (i + 1) / (nTop + 1); // fração ao longo do ramo
-        const xAlong = xSpine + (xTipTop - xSpine) * t;
-        const yAlong = centerY + (yTipTop - centerY) * t;
+      ctx.font = "26px system-ui";
+      drawWrappedText(ctx, problem, headX, headY, problemMaxWidth, 34);
 
-        const textY = yAlong - 10;
-        const textX = xAlong - maxTextWidth - 10;
-        drawWrappedText(ctx, "– " + causesTop[i], textX, textY, maxTextWidth, 22);
+      // parâmetros dos ramos (3 colunas)
+      const pairCount = pairs.length;
+      const usableLength = spineEndX - spineStartX - 80;
+      const stepX = usableLength / (pairCount - 1 || 1);
+
+      const verticalOffsets = [220, 360, 500]; // distância ao centro
+      const maxTextWidth = 360;
+
+      ctx.lineWidth = 3;
+
+      for (let j = 0; j < pairCount; j++) {
+        const xSpine = spineStartX + stepX * j;
+        const offset = verticalOffsets[j] || verticalOffsets[verticalOffsets.length - 1];
+
+        // ramo de cima
+        const topBranch = pairs[j].top;
+        if (topBranch) {
+          const yTipTop = centerY - offset;
+          const xTipTop = xSpine - 260;
+
+          ctx.strokeStyle = "#e5e7eb";
+          ctx.beginPath();
+          ctx.moveTo(xSpine, centerY);
+          ctx.lineTo(xTipTop, yTipTop);
+          ctx.stroke();
+
+          ctx.fillStyle = "#fbbf24";
+          ctx.font = "bold 22px system-ui";
+          let titleYTop = yTipTop - 18;
+          const titleXTop = xTipTop - maxTextWidth + 40;
+          titleYTop = drawWrappedText(ctx, topBranch.title, titleXTop, titleYTop, maxTextWidth, 26) + 8;
+
+          ctx.fillStyle = "#e5e7eb";
+          ctx.font = "18px system-ui";
+          const causesTop = topBranch.causes;
+          const nTop = causesTop.length;
+          for (let i = 0; i < nTop; i++) {
+            const t = (i + 1) / (nTop + 1);
+            const xAlong = xSpine + (xTipTop - xSpine) * t;
+            const yAlong = centerY + (yTipTop - centerY) * t;
+
+            const textY = yAlong - 10;
+            const textX = xAlong - maxTextWidth - 10;
+            drawWrappedText(ctx, "– " + causesTop[i], textX, textY, maxTextWidth, 22);
+          }
+        }
+
+        // ramo de baixo
+        const bottomBranch = pairs[j].bottom;
+        if (bottomBranch) {
+          const yTipBot = centerY + offset;
+          const xTipBot = xSpine - 260;
+
+          ctx.strokeStyle = "#e5e7eb";
+          ctx.beginPath();
+          ctx.moveTo(xSpine, centerY);
+          ctx.lineTo(xTipBot, yTipBot);
+          ctx.stroke();
+
+          ctx.fillStyle = "#fbbf24";
+          ctx.font = "bold 22px system-ui";
+          let titleYBot = yTipBot + 30;
+          const titleXBot = xTipBot - maxTextWidth + 40;
+          titleYBot = drawWrappedText(ctx, bottomBranch.title, titleXBot, titleYBot, maxTextWidth, 26) + 8;
+
+          ctx.fillStyle = "#e5e7eb";
+          ctx.font = "18px system-ui";
+          const causesBot = bottomBranch.causes;
+          const nBot = causesBot.length;
+          for (let i = 0; i < nBot; i++) {
+            const t = (i + 1) / (nBot + 1);
+            const xAlong = xSpine + (xTipBot - xSpine) * t;
+            const yAlong = centerY + (yTipBot - centerY) * t;
+
+            const textY = yAlong + 24;
+            const textX = xAlong - maxTextWidth - 10;
+            drawWrappedText(ctx, "– " + causesBot[i], textX, textY, maxTextWidth, 22);
+          }
+        }
+      }
+
+      // rodapé
+      ctx.font = "16px system-ui";
+      ctx.fillStyle = "#9ca3af";
+      ctx.fillText("PlotFish – brainstorming de problemas de história", 20, canvas.height - 30);
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const imgEl = document.getElementById("fishboneImage");
+      const section = document.getElementById("fishboneSection");
+      imgEl.src = dataUrl;
+      section.style.display = "block";
+      if (section.scrollIntoView) {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }
 
-    // BOTTOM branch
-    const bottomBranch = pairs[j].bottom;
-    if (bottomBranch) {
-      const yTipBot = centerY + offset;
-      const xTipBot = xSpine - 260;
-
-      // linha
-      ctx.strokeStyle = "#e5e7eb";
-      ctx.beginPath();
-      ctx.moveTo(xSpine, centerY);
-      ctx.lineTo(xTipBot, yTipBot);
-      ctx.stroke();
-
-      // título do cluster
-      ctx.fillStyle = "#fbbf24";
-      ctx.font = "bold 22px system-ui";
-      let titleYBot = yTipBot + 28;
-      const titleXBot = xTipBot - maxTextWidth + 40;
-      titleYBot = drawWrappedText(ctx, bottomBranch.title, titleXBot, titleYBot, maxTextWidth, 24) + 8;
-
-      // causas ao longo do ramo
-      ctx.fillStyle = "#e5e7eb";
-      ctx.font = "18px system-ui";
-      const causesBot = bottomBranch.causes;
-      const nBot = causesBot.length;
-
-      for (let i = 0; i < nBot; i++) {
-        const t = (i + 1) / (nBot + 1);
-        const xAlong = xSpine + (xTipBot - xSpine) * t;
-        const yAlong = centerY + (yTipBot - centerY) * t;
-
-        const textY = yAlong + 24;
-        const textX = xAlong - maxTextWidth - 10;
-        drawWrappedText(ctx, "– " + causesBot[i], textX, textY, maxTextWidth, 22);
-      }
-    }
-  }
-
-  // Rodapé
-  ctx.font = "16px system-ui";
-  ctx.fillStyle = "#9ca3af";
-  ctx.fillText("PlotFish – brainstorming de problemas de história", 20, canvas.height - 30);
-
-  // Mostrar imagem
-  const dataUrl = canvas.toDataURL("image/png");
-  const imgEl = document.getElementById("fishboneImage");
-  const section = document.getElementById("fishboneSection");
-  imgEl.src = dataUrl;
-  section.style.display = "block";
-  if (section.scrollIntoView) {
-    section.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-}
-  
-    // ---------- Guardar / carregar sessão ----------
+    // --- guardar / carregar sessão ---
     function exportState() {
       const state = {
         problem: document.getElementById("problemDescription").value || "",
         type: document.getElementById("problemType").value || "",
         areas: {}
       };
-
       AREAS.forEach(area => {
         const container = document.getElementById(`hypotheses-${area.id}`);
         if (!container) return;
         const cards = Array.from(container.getElementsByClassName("hypothesis-card"));
         if (cards.length === 0) return;
-
         state.areas[area.id] = cards.map(card => ({
           hyp: card.querySelector(".hypothesis-text")?.value || "",
           why1: card.querySelector(".why1")?.value || "",
@@ -702,16 +679,13 @@
           why3: card.querySelector(".why3")?.value || ""
         }));
       });
-
       return state;
     }
 
     function importState(state) {
       document.getElementById("problemDescription").value = state.problem || "";
       document.getElementById("problemType").value = state.type || "";
-
-      initAreas(); // recria as áreas vazias
-
+      initAreas();
       if (state.areas) {
         Object.keys(state.areas).forEach(areaId => {
           const list = state.areas[areaId] || [];
@@ -757,7 +731,7 @@
       }
     }
 
-    // ---------- Limpar ----------
+    // --- limpar ---
     function clearAll() {
       if (!confirm("Queres mesmo limpar tudo? Isto apaga o problema, as hipóteses, o resumo e a sessão guardada.")) return;
       document.getElementById("problemDescription").value = "";
@@ -769,11 +743,10 @@
       initAreas();
     }
 
-    // ---------- Inicialização ----------
+    // --- init ---
     (function initApp() {
       initAreas();
-      // tenta carregar sessão anterior sem incomodar o utilizador
-      loadSession(false);
+      loadSession(false); // tenta carregar sessão anterior em silêncio
     })();
   </script>
 </body>
