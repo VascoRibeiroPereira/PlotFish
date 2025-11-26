@@ -496,6 +496,7 @@
     }
 
     // ---------- Imagem fishbone ----------
+
     function generateFishboneImage() {
   const problem = document.getElementById("problemDescription").value.trim();
   if (!problem) {
@@ -505,7 +506,7 @@
 
   // Para cada área, recolher as "causas finais":
   // último porquê preenchido (why3, depois why2, depois why1, se nada então a própria hipótese).
-  const branchData = AREAS.map(area => {
+  const branches = AREAS.map(area => {
     const container = document.getElementById(`hypotheses-${area.id}`);
     const causes = [];
 
@@ -520,7 +521,7 @@
         let cause = why3 || why2 || why1 || hyp;
         if (!cause) return;
 
-        const MAX_CHARS = 80;  // limitar comprimento para facilitar o layout
+        const MAX_CHARS = 80;
         if (cause.length > MAX_CHARS) {
           cause = cause.slice(0, MAX_CHARS) + "…";
         }
@@ -529,16 +530,22 @@
     }
 
     return {
-      id: area.id,
       title: area.title,
-      causes // pode ser [] se não houver
+      causes // [] se não houver
     };
   });
 
-  // Canvas base
+  // Emparelhar em "espelho": 3 em cima, 3 em baixo
+  const pairs = [
+    { top: branches[0] || null, bottom: branches[3] || null },
+    { top: branches[1] || null, bottom: branches[4] || null },
+    { top: branches[2] || null, bottom: branches[5] || null }
+  ];
+
+  // Canvas maior (melhor resolução, mais espaço)
   const canvas = document.createElement("canvas");
-  canvas.width = 1800;
-  canvas.height = 1000;
+  canvas.width = 2400;
+  canvas.height = 1350;
   const ctx = canvas.getContext("2d");
 
   // Fundo
@@ -549,9 +556,9 @@
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Espinha central
-  const centerY = canvas.height / 2;
-  const spineStartX = 260;              // cauda
-  const spineEndX   = canvas.width - 430; // perto da cabeça
+  const centerY = canvas.height / 2; // 675
+  const spineStartX = 260;               // cauda
+  const spineEndX   = canvas.width - 520; // cabeça
   ctx.strokeStyle = "#e5e7eb";
   ctx.lineWidth = 4;
   ctx.beginPath();
@@ -559,77 +566,104 @@
   ctx.lineTo(spineEndX, centerY);
   ctx.stroke();
 
-  // Cabeça (problema)
+  // Cabeça (problema) com mais largura
   ctx.fillStyle = "#e5e7eb";
-  ctx.font = "bold 30px system-ui";
-  const problemMaxWidth = 360;
-  let headY = centerY - 70;
-  headY = drawWrappedText(ctx, "Problema:", spineEndX + 30, headY, problemMaxWidth, 34) + 10;
+  ctx.font = "bold 32px system-ui";
+  const problemMaxWidth = 520;
+  let headY = centerY - 140;
+  headY = drawWrappedText(ctx, "Problema:", spineEndX + 40, headY, problemMaxWidth, 36) + 18;
 
-  ctx.font = "24px system-ui";
-  drawWrappedText(ctx, problem, spineEndX + 30, headY, problemMaxWidth, 30);
+  ctx.font = "26px system-ui";
+  drawWrappedText(ctx, problem, spineEndX + 40, headY, problemMaxWidth, 32);
 
-  // Parâmetros dos ramos principais (6 fixos)
-  const totalBranches = branchData.length; // 6
+  // Parâmetros dos ramos
+  const pairCount = pairs.length; // 3 colunas
   const usableLength = spineEndX - spineStartX - 80;
-  const stepX = totalBranches > 1 ? usableLength / (totalBranches - 1) : usableLength / 2;
+  const stepX = pairCount > 1 ? usableLength / (pairCount - 1) : usableLength / 2;
 
-  const verticalOffsetBase = 170;
-  const verticalStep = 90;
-  const maxTextWidth = 320;
+  const verticalOffsets = [220, 360, 500]; // espelho
+  const maxTextWidth = 360;
 
   ctx.lineWidth = 3;
 
-  let topIndex = 0;
-  let bottomIndex = 0;
+  for (let j = 0; j < pairCount; j++) {
+    const xSpine = spineStartX + stepX * j;
+    const offset = verticalOffsets[j] || verticalOffsets[verticalOffsets.length - 1];
 
-  branchData.forEach((branch, idx) => {
-    const xSpine = spineStartX + stepX * idx;
-    const isTop = (idx % 2 === 0);
-    const offsetIndex = isTop ? topIndex++ : bottomIndex++;
+    // TOP branch
+    const topBranch = pairs[j].top;
+    if (topBranch) {
+      const yTipTop = centerY - offset;
+      const xTipTop = xSpine - 260;
 
-    const yTip = isTop
-      ? centerY - (verticalOffsetBase + offsetIndex * verticalStep)
-      : centerY + (verticalOffsetBase + offsetIndex * verticalStep);
+      // linha
+      ctx.strokeStyle = "#e5e7eb";
+      ctx.beginPath();
+      ctx.moveTo(xSpine, centerY);
+      ctx.lineTo(xTipTop, yTipTop);
+      ctx.stroke();
 
-    const xTip = xSpine - 220; // ponta do ramo (onde fica o nome do cluster)
+      // título do cluster
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "bold 22px system-ui";
+      let titleYTop = yTipTop - 14;
+      const titleXTop = xTipTop - maxTextWidth + 40;
+      titleYTop = drawWrappedText(ctx, topBranch.title, titleXTop, titleYTop, maxTextWidth, 24) + 8;
 
-    // Ramo principal
-    ctx.strokeStyle = "#e5e7eb";
-    ctx.beginPath();
-    ctx.moveTo(xSpine, centerY);
-    ctx.lineTo(xTip, yTip);
-    ctx.stroke();
+      // causas ao longo do ramo
+      ctx.fillStyle = "#e5e7eb";
+      ctx.font = "18px system-ui";
+      const causesTop = topBranch.causes;
+      const nTop = causesTop.length;
 
-    // Nome do cluster na ponta
-    ctx.fillStyle = "#fbbf24";
-    ctx.font = "bold 22px system-ui";
-    let titleY = isTop ? yTip - 10 : yTip + 24;
-    const titleX = xTip - maxTextWidth + 40; // ligeiro ajuste para não ficar colado ao extremo
-    titleY = drawWrappedText(ctx, branch.title, titleX, titleY, maxTextWidth, 24) + 6;
+      for (let i = 0; i < nTop; i++) {
+        const t = (i + 1) / (nTop + 1); // fração ao longo do ramo
+        const xAlong = xSpine + (xTipTop - xSpine) * t;
+        const yAlong = centerY + (yTipTop - centerY) * t;
 
-    // Causas ao longo do ramo
-    ctx.fillStyle = "#e5e7eb";
-    ctx.font = "18px system-ui";
-
-    const causes = branch.causes;
-    const n = causes.length;
-
-    if (n > 0) {
-      // vamos distribuir os pontos ao longo do ramo, entre a espinha e a ponta
-      for (let i = 0; i < n; i++) {
-        const t = (i + 1) / (n + 1); // fração ao longo do ramo (equidistante)
-        const xAlong = xSpine + (xTip - xSpine) * t;
-        const yAlong = centerY + (yTip - centerY) * t;
-
-        // posição do texto ligeiramente afastada da linha
-        const textY = isTop ? yAlong - 8 : yAlong + 22;
+        const textY = yAlong - 10;
         const textX = xAlong - maxTextWidth - 10;
-
-        drawWrappedText(ctx, "– " + causes[i], textX, textY, maxTextWidth, 22);
+        drawWrappedText(ctx, "– " + causesTop[i], textX, textY, maxTextWidth, 22);
       }
     }
-  });
+
+    // BOTTOM branch
+    const bottomBranch = pairs[j].bottom;
+    if (bottomBranch) {
+      const yTipBot = centerY + offset;
+      const xTipBot = xSpine - 260;
+
+      // linha
+      ctx.strokeStyle = "#e5e7eb";
+      ctx.beginPath();
+      ctx.moveTo(xSpine, centerY);
+      ctx.lineTo(xTipBot, yTipBot);
+      ctx.stroke();
+
+      // título do cluster
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "bold 22px system-ui";
+      let titleYBot = yTipBot + 28;
+      const titleXBot = xTipBot - maxTextWidth + 40;
+      titleYBot = drawWrappedText(ctx, bottomBranch.title, titleXBot, titleYBot, maxTextWidth, 24) + 8;
+
+      // causas ao longo do ramo
+      ctx.fillStyle = "#e5e7eb";
+      ctx.font = "18px system-ui";
+      const causesBot = bottomBranch.causes;
+      const nBot = causesBot.length;
+
+      for (let i = 0; i < nBot; i++) {
+        const t = (i + 1) / (nBot + 1);
+        const xAlong = xSpine + (xTipBot - xSpine) * t;
+        const yAlong = centerY + (yTipBot - centerY) * t;
+
+        const textY = yAlong + 24;
+        const textX = xAlong - maxTextWidth - 10;
+        drawWrappedText(ctx, "– " + causesBot[i], textX, textY, maxTextWidth, 22);
+      }
+    }
+  }
 
   // Rodapé
   ctx.font = "16px system-ui";
@@ -646,6 +680,7 @@
     section.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
+  
     // ---------- Guardar / carregar sessão ----------
     function exportState() {
       const state = {
