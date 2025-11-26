@@ -91,14 +91,6 @@
       background: #b91c1c;
       color: white;
     }
-    .pill {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: rgba(148,163,184,0.2);
-      font-size: 0.75rem;
-      margin-right: 4px;
-    }
     .area-header {
       display: flex;
       justify-content: space-between;
@@ -180,7 +172,7 @@
     </div>
     <p class="small-hint">
       Começa por descrever o problema, depois explora hipóteses por área (personagens, enredo, mundo, etc.).
-      No final, gera um resumo para reveres ou reescreveres a cena.
+      No final, gera um resumo ou um diagrama fishbone para reveres ou reescreveres a cena.
     </p>
   </header>
 
@@ -221,22 +213,39 @@
     <h2>Passo 3 · Resumo para revisão</h2>
     <p class="small-hint">
       Gera um texto com o problema, as áreas onde suspeitas que está a falha e as hipóteses que
-      queres explorar. Copia para o teu editor de texto e trabalha a partir daí.
+      queres explorar. Depois, se quiseres, podes também gerar uma imagem tipo fishbone.
     </p>
-    <button class="primary" type="button" onclick="generateSummary()">
-      🧾 Gerar resumo
-    </button>
-    <button class="secondary" type="button" onclick="copySummary()">
-      📋 Copiar resumo
-    </button>
-    <button class="secondary" type="button" onclick="clearAll()">
-      🔄 Limpar tudo
-    </button>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      <button class="primary" type="button" onclick="generateSummary()">
+        🧾 Gerar resumo
+      </button>
+      <button class="secondary" type="button" onclick="copySummary()">
+        📋 Copiar resumo
+      </button>
+      <button class="secondary" type="button" onclick="generateFishboneImage()">
+        🎨 Gerar imagem fishbone
+      </button>
+      <button class="secondary" type="button" onclick="clearAll()">
+        🔄 Limpar tudo
+      </button>
+    </div>
 
     <label style="margin-top:10px;">
       Resultado
       <textarea id="summaryBox" readonly></textarea>
     </label>
+  </section>
+
+  <!-- IMAGEM FISHBONE -->
+  <section id="fishboneSection" style="margin-top:16px; display:none;">
+    <h2>Diagrama fishbone</h2>
+    <p class="small-hint">
+      Diagrama gerado a partir do problema e das hipóteses que escreveste. Mantém o dedo em cima
+      da imagem (no telemóvel/tablet) para guardar ou partilhar.
+    </p>
+    <div class="card">
+      <img id="fishboneImage" alt="Diagrama fishbone gerado" style="width:100%;max-width:100%;border-radius:8px;display:block;" />
+    </div>
   </section>
 
   <script>
@@ -484,12 +493,179 @@
       }
     }
 
+    // Helper para texto multi-linha no canvas
+    function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
+      const words = text.split(" ");
+      let line = "";
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + " ";
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+        if (testWidth > maxWidth && n > 0) {
+          ctx.fillText(line, x, y);
+          line = words[n] + " ";
+          y += lineHeight;
+        } else {
+          line = testLine;
+        }
+      }
+      if (line) {
+        ctx.fillText(line, x, y);
+      }
+      return y;
+    }
+
+    // Gera uma imagem tipo fishbone com o problema e as áreas
+    function generateFishboneImage() {
+      const problem = document.getElementById("problemDescription").value.trim();
+      if (!problem) {
+        alert("Para gerar o fishbone, primeiro descreve o problema no Passo 1.");
+        return;
+      }
+
+      // Recolher hipóteses por área (apenas as primeiras 1–2 para não ficar ilegível)
+      const branchData = [];
+      AREAS.forEach(area => {
+        const container = document.getElementById(`hypotheses-${area.id}`);
+        if (!container) return;
+        const cards = Array.from(container.getElementsByClassName("hypothesis-card"));
+        if (cards.length === 0) return;
+
+        const texts = [];
+        for (const card of cards) {
+          const hyp = card.querySelector(".hypothesis-text")?.value.trim();
+          if (hyp) texts.push("• " + hyp);
+          if (texts.length >= 2) break; // limitar a 2 por área
+        }
+        if (texts.length === 0) return;
+
+        branchData.push({
+          title: area.title,
+          lines: texts
+        });
+      });
+
+      if (branchData.length === 0) {
+        alert("Ainda não há hipóteses preenchidas nas áreas. Adiciona pelo menos uma hipótese numa área para gerar o fishbone.");
+        return;
+      }
+
+      // Canvas horizontal
+      const canvas = document.createElement("canvas");
+      canvas.width = 1600;
+      canvas.height = 900;
+      const ctx = canvas.getContext("2d");
+
+      // Fundo
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, "#020617");
+      gradient.addColorStop(1, "#111827");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Espinha central
+      const centerY = canvas.height / 2;
+      const spineStartX = 150;
+      const spineEndX = canvas.width - 250;
+      ctx.strokeStyle = "#e5e7eb";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(spineStartX, centerY);
+      ctx.lineTo(spineEndX, centerY);
+      ctx.stroke();
+
+      // Cabeça (problema) – lado direito
+      ctx.fillStyle = "#e5e7eb";
+      ctx.font = "bold 28px system-ui";
+      const problemMaxWidth = 320;
+      let headY = centerY - 40;
+      headY = drawWrappedText(ctx, "Problema:", spineEndX + 10, headY, problemMaxWidth, 32) + 6;
+
+      ctx.font = "24px system-ui";
+      headY = drawWrappedText(ctx, problem, spineEndX + 10, headY, problemMaxWidth, 30);
+
+      // Distribuir ramos (alternando cima/baixo)
+      const topBranches = [];
+      const bottomBranches = [];
+      branchData.forEach((b, idx) => {
+        if (idx % 2 === 0) topBranches.push(b);
+        else bottomBranches.push(b);
+      });
+
+      const totalBranches = branchData.length;
+      const usableLength = spineEndX - spineStartX - 100;
+      const stepX = totalBranches > 1 ? usableLength / (totalBranches - 1) : usableLength / 2;
+
+      // Desenhar ramos
+      ctx.lineWidth = 3;
+      ctx.font = "20px system-ui";
+
+      let topIndex = 0;
+      let bottomIndex = 0;
+
+      branchData.forEach((branch, idx) => {
+        const xOnSpine = spineStartX + stepX * idx;
+
+        const isTop = (idx % 2 === 0);
+        const offsetIndex = isTop ? topIndex++ : bottomIndex++;
+
+        const length = 180;
+        const verticalOffsetBase = 140;
+        const verticalStep = 80;
+        const yEnd = isTop
+          ? centerY - (verticalOffsetBase + offsetIndex * verticalStep)
+          : centerY + (verticalOffsetBase + offsetIndex * verticalStep);
+
+        const xEnd = xOnSpine + 100 * (isTop ? 1 : 1);
+
+        // Linha do ramo
+        ctx.strokeStyle = "#e5e7eb";
+        ctx.beginPath();
+        ctx.moveTo(xOnSpine, centerY);
+        ctx.lineTo(xEnd, yEnd);
+        ctx.stroke();
+
+        // Texto da área + hipóteses
+        const textX = xEnd + 10;
+        let textY = yEnd - 6;
+
+        ctx.fillStyle = "#fbbf24"; // título da área
+        ctx.font = "bold 22px system-ui";
+        textY = drawWrappedText(ctx, branch.title, textX, textY, 350, 26) + 4;
+
+        ctx.fillStyle = "#e5e7eb";
+        ctx.font = "18px system-ui";
+        branch.lines.forEach(line => {
+          textY = drawWrappedText(ctx, line, textX, textY + 2, 360, 22);
+        });
+      });
+
+      // Pequeno rodapé
+      ctx.font = "16px system-ui";
+      ctx.fillStyle = "#9ca3af";
+      ctx.fillText("PlotFish – brainstorming de problemas de história", 20, canvas.height - 30);
+
+      // Converter para imagem
+      const dataUrl = canvas.toDataURL("image/png");
+      const imgEl = document.getElementById("fishboneImage");
+      const section = document.getElementById("fishboneSection");
+      imgEl.src = dataUrl;
+      section.style.display = "block";
+
+      // Scroll até à imagem
+      if (section.scrollIntoView) {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
     // Limpar tudo
     function clearAll() {
-      if (!confirm("Queres mesmo limpar tudo? Isto apaga o problema e todas as hipóteses.")) return;
+      if (!confirm("Queres mesmo limpar tudo? Isto apaga o problema, as hipóteses e o resumo.")) return;
       document.getElementById("problemDescription").value = "";
       document.getElementById("problemType").value = "";
       document.getElementById("summaryBox").value = "";
+      document.getElementById("fishboneSection").style.display = "none";
+      document.getElementById("fishboneImage").src = "";
       initAreas();
     }
 
