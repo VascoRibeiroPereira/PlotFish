@@ -15,16 +15,9 @@
       background: #0b1220;
       color: #e5e7eb;
     }
-    h1, h2, h3 {
-      margin: 0 0 8px;
-    }
-    h1 {
-      font-size: 1.6rem;
-    }
-    h2 {
-      font-size: 1.2rem;
-      margin-top: 16px;
-    }
+    h1, h2, h3 { margin: 0 0 8px; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.2rem; margin-top: 16px; }
     p {
       margin: 4px 0 8px;
       font-size: 0.95rem;
@@ -63,10 +56,7 @@
       color: #e5e7eb;
       font-size: 0.9rem;
     }
-    textarea {
-      min-height: 60px;
-      resize: vertical;
-    }
+    textarea { min-height: 60px; resize: vertical; }
     button {
       border: none;
       border-radius: 999px;
@@ -87,10 +77,7 @@
       color: #e5e7eb;
       border: 1px solid #4b5563;
     }
-    .danger {
-      background: #b91c1c;
-      color: white;
-    }
+    .danger { background: #b91c1c; color: white; }
     .area-header {
       display: flex;
       justify-content: space-between;
@@ -98,14 +85,8 @@
       gap: 8px;
       margin-bottom: 4px;
     }
-    .area-title-main {
-      font-weight: 600;
-      font-size: 0.95rem;
-    }
-    .area-subtitle {
-      font-size: 0.8rem;
-      color: #9ca3af;
-    }
+    .area-title-main { font-weight: 600; font-size: 0.95rem; }
+    .area-subtitle { font-size: 0.8rem; color: #9ca3af; }
     .hypothesis-card {
       border-radius: 8px;
       border: 1px solid rgba(148,163,184,0.3);
@@ -210,10 +191,10 @@
 
   <!-- PASSO 3 -->
   <section class="card" style="margin-top:16px;">
-    <h2>Passo 3 · Resumo para revisão</h2>
+    <h2>Passo 3 · Resumo, imagem e guardar sessão</h2>
     <p class="small-hint">
       Gera um texto com o problema, as áreas onde suspeitas que está a falha e as hipóteses que
-      queres explorar. Depois, se quiseres, podes também gerar uma imagem tipo fishbone.
+      queres explorar. Podes também gerar uma imagem fishbone e guardar/carregar a sessão neste dispositivo.
     </p>
     <div style="display:flex;flex-wrap:wrap;gap:8px;">
       <button class="primary" type="button" onclick="generateSummary()">
@@ -224,6 +205,12 @@
       </button>
       <button class="secondary" type="button" onclick="generateFishboneImage()">
         🎨 Gerar imagem fishbone
+      </button>
+      <button class="secondary" type="button" onclick="saveSession()">
+        💾 Guardar sessão
+      </button>
+      <button class="secondary" type="button" onclick="loadSession(true)">
+        ⬆️ Carregar sessão
       </button>
       <button class="secondary" type="button" onclick="clearAll()">
         🔄 Limpar tudo
@@ -250,6 +237,8 @@
 
   <script>
     "use strict";
+
+    const STORAGE_KEY = "plotfish_session_v1";
 
     // Definição das áreas (espinhas)
     const AREAS = [
@@ -315,7 +304,7 @@
       }
     ];
 
-    // Inicialização da UI das áreas
+    // ---------- Construção das áreas ----------
     function initAreas() {
       const container = document.getElementById("areasContainer");
       container.innerHTML = "";
@@ -349,7 +338,6 @@
       });
     }
 
-    // Adiciona um bloco de hipótese + porquês a uma área
     function addHypothesis(areaId) {
       const container = document.getElementById(`hypotheses-${areaId}`);
       if (!container) return;
@@ -396,7 +384,7 @@
       }
     }
 
-    // Gera o resumo de tudo
+    // ---------- Resumo ----------
     function generateSummary() {
       const problem = document.getElementById("problemDescription").value.trim();
       const type = document.getElementById("problemType").value;
@@ -440,7 +428,6 @@
           if (!hyp && !why1 && !why2 && !why3) return;
 
           lines.push(`  • Hipótese ${idx + 1}: ${hyp || "(não preenchido)"}`);
-
           if (why1) lines.push(`      – Porquê 1: ${why1}`);
           if (why2) lines.push(`      – Porquê 2: ${why2}`);
           if (why3) lines.push(`      – Porquê 3: ${why3}`);
@@ -456,11 +443,9 @@
         "• Escolher 1–3 mudanças concretas para testar (reescrever uma cena, clarificar motivações, alterar stakes, etc.)."
       );
 
-      const summaryText = lines.join("\n");
-      document.getElementById("summaryBox").value = summaryText;
+      document.getElementById("summaryBox").value = lines.join("\n");
     }
 
-    // Copia o resumo para clipboard
     function copySummary() {
       const summaryEl = document.getElementById("summaryBox");
       const text = summaryEl.value;
@@ -484,16 +469,13 @@
     }
 
     function fallbackCopy(text) {
-      const ok = window.prompt(
+      window.prompt(
         "Copia manualmente o texto (Ctrl+C / Command+C) e depois Enter:",
         text
       );
-      if (!ok) {
-        // nada
-      }
     }
 
-    // Helper para texto multi-linha no canvas
+    // ---------- Texto multlinha no canvas ----------
     function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight) {
       const words = text.split(" ");
       let line = "";
@@ -509,163 +491,231 @@
           line = testLine;
         }
       }
-      if (line) {
-        ctx.fillText(line, x, y);
-      }
+      if (line) ctx.fillText(line, x, y);
       return y;
     }
 
-
+    // ---------- Imagem fishbone ----------
     function generateFishboneImage() {
-  const problem = document.getElementById("problemDescription").value.trim();
-  if (!problem) {
-    alert("Para gerar o fishbone, primeiro descreve o problema no Passo 1.");
-    return;
-  }
+      const problem = document.getElementById("problemDescription").value.trim();
+      if (!problem) {
+        alert("Para gerar o fishbone, primeiro descreve o problema no Passo 1.");
+        return;
+      }
 
-  // Recolher 1 hipótese curta por área para não encher a imagem
-  const branchData = [];
-  AREAS.forEach(area => {
-    const container = document.getElementById(`hypotheses-${area.id}`);
-    if (!container) return;
-    const card = container.querySelector(".hypothesis-card");
-    if (!card) return;
+      // 1 hipótese curta por área
+      const branchData = [];
+      AREAS.forEach(area => {
+        const container = document.getElementById(`hypotheses-${area.id}`);
+        if (!container) return;
+        const card = container.querySelector(".hypothesis-card");
+        if (!card) return;
 
-    let hyp = card.querySelector(".hypothesis-text")?.value.trim();
-    if (!hyp) return;
+        let hyp = card.querySelector(".hypothesis-text")?.value.trim();
+        if (!hyp) return;
 
-    const MAX_CHARS = 90;
-    if (hyp.length > MAX_CHARS) hyp = hyp.slice(0, MAX_CHARS) + "…";
+        const MAX_CHARS = 90;
+        if (hyp.length > MAX_CHARS) hyp = hyp.slice(0, MAX_CHARS) + "…";
 
-    branchData.push({
-      title: area.title,
-      line: "• " + hyp
-    });
-  });
+        branchData.push({
+          title: area.title,
+          line: "• " + hyp
+        });
+      });
 
-  if (branchData.length === 0) {
-    alert("Adiciona pelo menos uma hipótese numa das áreas para gerar o fishbone.");
-    return;
-  }
+      if (branchData.length === 0) {
+        alert("Adiciona pelo menos uma hipótese numa das áreas para gerar o fishbone.");
+        return;
+      }
 
-  // Canvas horizontal, um pouco mais alto
-  const canvas = document.createElement("canvas");
-  canvas.width = 1800;
-  canvas.height = 1000;
-  const ctx = canvas.getContext("2d");
+      const canvas = document.createElement("canvas");
+      canvas.width = 1800;
+      canvas.height = 1000;
+      const ctx = canvas.getContext("2d");
 
-  // Fundo
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, "#020617");
-  gradient.addColorStop(1, "#111827");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Fundo
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, "#020617");
+      gradient.addColorStop(1, "#111827");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Espinha central
-  const centerY = canvas.height / 2;
-  const spineStartX = 250;                 // lado da cauda
-  const spineEndX = canvas.width - 420;    // perto da cabeça
-  ctx.strokeStyle = "#e5e7eb";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(spineStartX, centerY);
-  ctx.lineTo(spineEndX, centerY);
-  ctx.stroke();
+      // Espinha central
+      const centerY = canvas.height / 2;
+      const spineStartX = 250;              // cauda
+      const spineEndX = canvas.width - 420; // cabeça
+      ctx.strokeStyle = "#e5e7eb";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(spineStartX, centerY);
+      ctx.lineTo(spineEndX, centerY);
+      ctx.stroke();
 
-  // Cabeça (problema) – lado direito
-  ctx.fillStyle = "#e5e7eb";
-  ctx.font = "bold 30px system-ui";
-  const problemMaxWidth = 340;
-  let headY = centerY - 60;
-  headY = drawWrappedText(ctx, "Problema:", spineEndX + 30, headY, problemMaxWidth, 32) + 8;
+      // Cabeça (problema)
+      ctx.fillStyle = "#e5e7eb";
+      ctx.font = "bold 30px system-ui";
+      const problemMaxWidth = 340;
+      let headY = centerY - 60;
+      headY = drawWrappedText(ctx, "Problema:", spineEndX + 30, headY, problemMaxWidth, 32) + 8;
 
-  ctx.font = "24px system-ui";
-  drawWrappedText(ctx, problem, spineEndX + 30, headY, problemMaxWidth, 30);
+      ctx.font = "24px system-ui";
+      drawWrappedText(ctx, problem, spineEndX + 30, headY, problemMaxWidth, 30);
 
-  // Distribuir ramos ao longo da espinha
-  const totalBranches = branchData.length;
-  const usableLength = spineEndX - spineStartX - 80;
-  const stepX = totalBranches > 1 ? usableLength / (totalBranches - 1) : usableLength / 2;
+      // Distribuição dos ramos
+      const totalBranches = branchData.length;
+      const usableLength = spineEndX - spineStartX - 80;
+      const stepX = totalBranches > 1 ? usableLength / (totalBranches - 1) : usableLength / 2;
 
-  const topBranches = [];
-  const bottomBranches = [];
-  branchData.forEach((b, idx) => {
-    if (idx % 2 === 0) topBranches.push(b);
-    else bottomBranches.push(b);
-  });
+      ctx.lineWidth = 3;
+      ctx.font = "20px system-ui";
+      const maxTextWidth = 360;
+      const verticalOffsetBase = 170;
+      const verticalStep = 90;
 
-  ctx.lineWidth = 3;
-  ctx.font = "20px system-ui";
+      let topIndex = 0;
+      let bottomIndex = 0;
 
-  let topIndex = 0;
-  let bottomIndex = 0;
+      branchData.forEach((branch, idx) => {
+        const xOnSpine = spineStartX + stepX * idx;
+        const isTop = (idx % 2 === 0);
+        const offsetIndex = isTop ? topIndex++ : bottomIndex++;
 
-  const verticalOffsetBase = 170;
-  const verticalStep = 90;
-  const maxTextWidth = 360;
+        const yEnd = isTop
+          ? centerY - (verticalOffsetBase + offsetIndex * verticalStep)
+          : centerY + (verticalOffsetBase + offsetIndex * verticalStep);
 
-  branchData.forEach((branch, idx) => {
-    const xOnSpine = spineStartX + stepX * idx;
-    const isTop = (idx % 2 === 0);
-    const offsetIndex = isTop ? topIndex++ : bottomIndex++;
+        // Ramos para a ESQUERDA (oposto da cabeça)
+        const xEnd = xOnSpine - 120;
 
-    const yEnd = isTop
-      ? centerY - (verticalOffsetBase + offsetIndex * verticalStep)
-      : centerY + (verticalOffsetBase + offsetIndex * verticalStep);
+        // Linha
+        ctx.strokeStyle = "#e5e7eb";
+        ctx.beginPath();
+        ctx.moveTo(xOnSpine, centerY);
+        ctx.lineTo(xEnd, yEnd);
+        ctx.stroke();
 
-    // Ramos agora vão para a ESQUERDA (oposto da cabeça)
-    const xEnd = xOnSpine - 120;
+        // Texto
+        let textY = isTop ? yEnd - 12 : yEnd + 26;
+        const textX = xEnd - maxTextWidth - 12;
 
-    // Linha do ramo
-    ctx.strokeStyle = "#e5e7eb";
-    ctx.beginPath();
-    ctx.moveTo(xOnSpine, centerY);
-    ctx.lineTo(xEnd, yEnd);
-    ctx.stroke();
+        ctx.fillStyle = "#fbbf24";
+        ctx.font = "bold 22px system-ui";
+        textY = drawWrappedText(ctx, branch.title, textX, textY, maxTextWidth, 24) + 4;
 
-    // Texto: fica à esquerda do ramo
-    let textY = isTop ? yEnd - 12 : yEnd + 26;
-    const textX = xEnd - maxTextWidth - 12;
+        ctx.fillStyle = "#e5e7eb";
+        ctx.font = "18px system-ui";
+        drawWrappedText(ctx, branch.line, textX, textY, maxTextWidth, 22);
+      });
 
-    ctx.fillStyle = "#fbbf24";
-    ctx.font = "bold 22px system-ui";
-    textY = drawWrappedText(ctx, branch.title, textX, textY, maxTextWidth, 24) + 4;
+      // Rodapé
+      ctx.font = "16px system-ui";
+      ctx.fillStyle = "#9ca3af";
+      ctx.fillText("PlotFish – brainstorming de problemas de história", 20, canvas.height - 30);
 
-    ctx.fillStyle = "#e5e7eb";
-    ctx.font = "18px system-ui";
-    drawWrappedText(ctx, branch.line, textX, textY, maxTextWidth, 22);
-  });
+      const dataUrl = canvas.toDataURL("image/png");
+      const imgEl = document.getElementById("fishboneImage");
+      const section = document.getElementById("fishboneSection");
+      imgEl.src = dataUrl;
+      section.style.display = "block";
+      if (section.scrollIntoView) {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
 
-  // Rodapé
-  ctx.font = "16px system-ui";
-  ctx.fillStyle = "#9ca3af";
-  ctx.fillText("PlotFish – brainstorming de problemas de história", 20, canvas.height - 30);
+    // ---------- Guardar / carregar sessão ----------
+    function exportState() {
+      const state = {
+        problem: document.getElementById("problemDescription").value || "",
+        type: document.getElementById("problemType").value || "",
+        areas: {}
+      };
 
-  // Converter em imagem
-  const dataUrl = canvas.toDataURL("image/png");
-  const imgEl = document.getElementById("fishboneImage");
-  const section = document.getElementById("fishboneSection");
-  imgEl.src = dataUrl;
-  section.style.display = "block";
+      AREAS.forEach(area => {
+        const container = document.getElementById(`hypotheses-${area.id}`);
+        if (!container) return;
+        const cards = Array.from(container.getElementsByClassName("hypothesis-card"));
+        if (cards.length === 0) return;
 
-  if (section.scrollIntoView) {
-    section.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-}
+        state.areas[area.id] = cards.map(card => ({
+          hyp: card.querySelector(".hypothesis-text")?.value || "",
+          why1: card.querySelector(".why1")?.value || "",
+          why2: card.querySelector(".why2")?.value || "",
+          why3: card.querySelector(".why3")?.value || ""
+        }));
+      });
 
-    // Limpar tudo
+      return state;
+    }
+
+    function importState(state) {
+      document.getElementById("problemDescription").value = state.problem || "";
+      document.getElementById("problemType").value = state.type || "";
+
+      initAreas(); // recria as áreas vazias
+
+      if (state.areas) {
+        Object.keys(state.areas).forEach(areaId => {
+          const list = state.areas[areaId] || [];
+          list.forEach(item => {
+            addHypothesis(areaId);
+            const container = document.getElementById(`hypotheses-${areaId}`);
+            const cards = container.getElementsByClassName("hypothesis-card");
+            const card = cards[cards.length - 1];
+            if (!card) return;
+            card.querySelector(".hypothesis-text").value = item.hyp || "";
+            card.querySelector(".why1").value = item.why1 || "";
+            card.querySelector(".why2").value = item.why2 || "";
+            card.querySelector(".why3").value = item.why3 || "";
+          });
+        });
+      }
+    }
+
+    function saveSession() {
+      const state = exportState();
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        alert("Sessão guardada neste dispositivo.");
+      } catch (e) {
+        console.error("Erro ao guardar sessão", e);
+        alert("Não consegui guardar a sessão (o navegador pode estar a bloquear o armazenamento local).");
+      }
+    }
+
+    function loadSession(fromButton = false) {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        if (fromButton) alert("Não há sessão guardada neste dispositivo.");
+        return;
+      }
+      try {
+        const state = JSON.parse(raw);
+        importState(state);
+        if (fromButton) alert("Sessão carregada.");
+      } catch (e) {
+        console.error("Erro ao carregar sessão", e);
+        if (fromButton) alert("Não consegui ler a sessão guardada.");
+      }
+    }
+
+    // ---------- Limpar ----------
     function clearAll() {
-      if (!confirm("Queres mesmo limpar tudo? Isto apaga o problema, as hipóteses e o resumo.")) return;
+      if (!confirm("Queres mesmo limpar tudo? Isto apaga o problema, as hipóteses, o resumo e a sessão guardada.")) return;
       document.getElementById("problemDescription").value = "";
       document.getElementById("problemType").value = "";
       document.getElementById("summaryBox").value = "";
       document.getElementById("fishboneSection").style.display = "none";
       document.getElementById("fishboneImage").src = "";
+      localStorage.removeItem(STORAGE_KEY);
       initAreas();
     }
 
-    // Inicialização
-    initAreas();
+    // ---------- Inicialização ----------
+    (function initApp() {
+      initAreas();
+      // tenta carregar sessão anterior sem incomodar o utilizador
+      loadSession(false);
+    })();
   </script>
 </body>
 </html>
