@@ -497,131 +497,155 @@
 
     // ---------- Imagem fishbone ----------
     function generateFishboneImage() {
-      const problem = document.getElementById("problemDescription").value.trim();
-      if (!problem) {
-        alert("Para gerar o fishbone, primeiro descreve o problema no Passo 1.");
-        return;
-      }
+  const problem = document.getElementById("problemDescription").value.trim();
+  if (!problem) {
+    alert("Para gerar o fishbone, primeiro descreve o problema no Passo 1.");
+    return;
+  }
 
-      // 1 hipótese curta por área
-      const branchData = [];
-      AREAS.forEach(area => {
-        const container = document.getElementById(`hypotheses-${area.id}`);
-        if (!container) return;
-        const card = container.querySelector(".hypothesis-card");
-        if (!card) return;
+  // Para cada área, recolher as "causas finais":
+  // último porquê preenchido (why3, depois why2, depois why1, se nada então a própria hipótese).
+  const branchData = AREAS.map(area => {
+    const container = document.getElementById(`hypotheses-${area.id}`);
+    const causes = [];
 
-        let hyp = card.querySelector(".hypothesis-text")?.value.trim();
-        if (!hyp) return;
+    if (container) {
+      const cards = Array.from(container.getElementsByClassName("hypothesis-card"));
+      cards.forEach(card => {
+        const hyp  = (card.querySelector(".hypothesis-text")?.value || "").trim();
+        const why1 = (card.querySelector(".why1")?.value || "").trim();
+        const why2 = (card.querySelector(".why2")?.value || "").trim();
+        const why3 = (card.querySelector(".why3")?.value || "").trim();
 
-        const MAX_CHARS = 90;
-        if (hyp.length > MAX_CHARS) hyp = hyp.slice(0, MAX_CHARS) + "…";
+        let cause = why3 || why2 || why1 || hyp;
+        if (!cause) return;
 
-        branchData.push({
-          title: area.title,
-          line: "• " + hyp
-        });
+        const MAX_CHARS = 80;  // limitar comprimento para facilitar o layout
+        if (cause.length > MAX_CHARS) {
+          cause = cause.slice(0, MAX_CHARS) + "…";
+        }
+        causes.push(cause);
       });
-
-      if (branchData.length === 0) {
-        alert("Adiciona pelo menos uma hipótese numa das áreas para gerar o fishbone.");
-        return;
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = 1800;
-      canvas.height = 1000;
-      const ctx = canvas.getContext("2d");
-
-      // Fundo
-      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      gradient.addColorStop(0, "#020617");
-      gradient.addColorStop(1, "#111827");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Espinha central
-      const centerY = canvas.height / 2;
-      const spineStartX = 250;              // cauda
-      const spineEndX = canvas.width - 420; // cabeça
-      ctx.strokeStyle = "#e5e7eb";
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(spineStartX, centerY);
-      ctx.lineTo(spineEndX, centerY);
-      ctx.stroke();
-
-      // Cabeça (problema)
-      ctx.fillStyle = "#e5e7eb";
-      ctx.font = "bold 30px system-ui";
-      const problemMaxWidth = 340;
-      let headY = centerY - 60;
-      headY = drawWrappedText(ctx, "Problema:", spineEndX + 30, headY, problemMaxWidth, 32) + 8;
-
-      ctx.font = "24px system-ui";
-      drawWrappedText(ctx, problem, spineEndX + 30, headY, problemMaxWidth, 30);
-
-      // Distribuição dos ramos
-      const totalBranches = branchData.length;
-      const usableLength = spineEndX - spineStartX - 80;
-      const stepX = totalBranches > 1 ? usableLength / (totalBranches - 1) : usableLength / 2;
-
-      ctx.lineWidth = 3;
-      ctx.font = "20px system-ui";
-      const maxTextWidth = 360;
-      const verticalOffsetBase = 170;
-      const verticalStep = 90;
-
-      let topIndex = 0;
-      let bottomIndex = 0;
-
-      branchData.forEach((branch, idx) => {
-        const xOnSpine = spineStartX + stepX * idx;
-        const isTop = (idx % 2 === 0);
-        const offsetIndex = isTop ? topIndex++ : bottomIndex++;
-
-        const yEnd = isTop
-          ? centerY - (verticalOffsetBase + offsetIndex * verticalStep)
-          : centerY + (verticalOffsetBase + offsetIndex * verticalStep);
-
-        // Ramos para a ESQUERDA (oposto da cabeça)
-        const xEnd = xOnSpine - 120;
-
-        // Linha
-        ctx.strokeStyle = "#e5e7eb";
-        ctx.beginPath();
-        ctx.moveTo(xOnSpine, centerY);
-        ctx.lineTo(xEnd, yEnd);
-        ctx.stroke();
-
-        // Texto
-        let textY = isTop ? yEnd - 12 : yEnd + 26;
-        const textX = xEnd - maxTextWidth - 12;
-
-        ctx.fillStyle = "#fbbf24";
-        ctx.font = "bold 22px system-ui";
-        textY = drawWrappedText(ctx, branch.title, textX, textY, maxTextWidth, 24) + 4;
-
-        ctx.fillStyle = "#e5e7eb";
-        ctx.font = "18px system-ui";
-        drawWrappedText(ctx, branch.line, textX, textY, maxTextWidth, 22);
-      });
-
-      // Rodapé
-      ctx.font = "16px system-ui";
-      ctx.fillStyle = "#9ca3af";
-      ctx.fillText("PlotFish – brainstorming de problemas de história", 20, canvas.height - 30);
-
-      const dataUrl = canvas.toDataURL("image/png");
-      const imgEl = document.getElementById("fishboneImage");
-      const section = document.getElementById("fishboneSection");
-      imgEl.src = dataUrl;
-      section.style.display = "block";
-      if (section.scrollIntoView) {
-        section.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
     }
 
+    return {
+      id: area.id,
+      title: area.title,
+      causes // pode ser [] se não houver
+    };
+  });
+
+  // Canvas base
+  const canvas = document.createElement("canvas");
+  canvas.width = 1800;
+  canvas.height = 1000;
+  const ctx = canvas.getContext("2d");
+
+  // Fundo
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, "#020617");
+  gradient.addColorStop(1, "#111827");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Espinha central
+  const centerY = canvas.height / 2;
+  const spineStartX = 260;              // cauda
+  const spineEndX   = canvas.width - 430; // perto da cabeça
+  ctx.strokeStyle = "#e5e7eb";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(spineStartX, centerY);
+  ctx.lineTo(spineEndX, centerY);
+  ctx.stroke();
+
+  // Cabeça (problema)
+  ctx.fillStyle = "#e5e7eb";
+  ctx.font = "bold 30px system-ui";
+  const problemMaxWidth = 360;
+  let headY = centerY - 70;
+  headY = drawWrappedText(ctx, "Problema:", spineEndX + 30, headY, problemMaxWidth, 34) + 10;
+
+  ctx.font = "24px system-ui";
+  drawWrappedText(ctx, problem, spineEndX + 30, headY, problemMaxWidth, 30);
+
+  // Parâmetros dos ramos principais (6 fixos)
+  const totalBranches = branchData.length; // 6
+  const usableLength = spineEndX - spineStartX - 80;
+  const stepX = totalBranches > 1 ? usableLength / (totalBranches - 1) : usableLength / 2;
+
+  const verticalOffsetBase = 170;
+  const verticalStep = 90;
+  const maxTextWidth = 320;
+
+  ctx.lineWidth = 3;
+
+  let topIndex = 0;
+  let bottomIndex = 0;
+
+  branchData.forEach((branch, idx) => {
+    const xSpine = spineStartX + stepX * idx;
+    const isTop = (idx % 2 === 0);
+    const offsetIndex = isTop ? topIndex++ : bottomIndex++;
+
+    const yTip = isTop
+      ? centerY - (verticalOffsetBase + offsetIndex * verticalStep)
+      : centerY + (verticalOffsetBase + offsetIndex * verticalStep);
+
+    const xTip = xSpine - 220; // ponta do ramo (onde fica o nome do cluster)
+
+    // Ramo principal
+    ctx.strokeStyle = "#e5e7eb";
+    ctx.beginPath();
+    ctx.moveTo(xSpine, centerY);
+    ctx.lineTo(xTip, yTip);
+    ctx.stroke();
+
+    // Nome do cluster na ponta
+    ctx.fillStyle = "#fbbf24";
+    ctx.font = "bold 22px system-ui";
+    let titleY = isTop ? yTip - 10 : yTip + 24;
+    const titleX = xTip - maxTextWidth + 40; // ligeiro ajuste para não ficar colado ao extremo
+    titleY = drawWrappedText(ctx, branch.title, titleX, titleY, maxTextWidth, 24) + 6;
+
+    // Causas ao longo do ramo
+    ctx.fillStyle = "#e5e7eb";
+    ctx.font = "18px system-ui";
+
+    const causes = branch.causes;
+    const n = causes.length;
+
+    if (n > 0) {
+      // vamos distribuir os pontos ao longo do ramo, entre a espinha e a ponta
+      for (let i = 0; i < n; i++) {
+        const t = (i + 1) / (n + 1); // fração ao longo do ramo (equidistante)
+        const xAlong = xSpine + (xTip - xSpine) * t;
+        const yAlong = centerY + (yTip - centerY) * t;
+
+        // posição do texto ligeiramente afastada da linha
+        const textY = isTop ? yAlong - 8 : yAlong + 22;
+        const textX = xAlong - maxTextWidth - 10;
+
+        drawWrappedText(ctx, "– " + causes[i], textX, textY, maxTextWidth, 22);
+      }
+    }
+  });
+
+  // Rodapé
+  ctx.font = "16px system-ui";
+  ctx.fillStyle = "#9ca3af";
+  ctx.fillText("PlotFish – brainstorming de problemas de história", 20, canvas.height - 30);
+
+  // Mostrar imagem
+  const dataUrl = canvas.toDataURL("image/png");
+  const imgEl = document.getElementById("fishboneImage");
+  const section = document.getElementById("fishboneSection");
+  imgEl.src = dataUrl;
+  section.style.display = "block";
+  if (section.scrollIntoView) {
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
     // ---------- Guardar / carregar sessão ----------
     function exportState() {
       const state = {
