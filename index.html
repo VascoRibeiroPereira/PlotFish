@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="utf-8" />
-  <title>PlotFish – Resolver um problema da história</title>
+  <title>PlotFish – Entre Sonhos</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#121826" />
   <style>
@@ -31,6 +31,15 @@
       color: #bfdbfe;
       font-size: 0.8rem;
       margin-bottom: 4px;
+    }
+    .brand-note {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
+    .brand-note strong {
+      color: #e5e7eb;
+      font-weight: 600;
     }
     .card {
       background: radial-gradient(circle at top left, #1f2937, #020617);
@@ -142,11 +151,14 @@
   <header>
     <div class="logo-row">
       <div>
-        <div class="badge">MVP · modo 1</div>
+        <div class="badge">Ferramenta para autores</div>
         <h1>PlotFish</h1>
         <p style="margin-bottom:4px;">
           Ferramenta de brainstorming para autores de fantasia & sci-fi que querem
           <strong>desbloquear problemas da história</strong> em vez de só sentir “isto não está a funcionar”.
+        </p>
+        <p class="brand-note">
+          Um projeto <strong>Entre Sonhos</strong> · ig: <strong>@blog_entre_sonhos</strong>
         </p>
       </div>
       <div class="logo-mark">🐟</div>
@@ -691,9 +703,9 @@
         }
       }
 
-      ctx.font = "16px system-ui";
+      ctx.font = "14px system-ui";
       ctx.fillStyle = "#9ca3af";
-      ctx.fillText("PlotFish – brainstorming de problemas de história", 20, canvas.height - 30);
+      ctx.fillText("PlotFish · Entre Sonhos · ig: @blog_entre_sonhos", 20, canvas.height - 30);
 
       const dataUrl = canvas.toDataURL("image/png");
       const imgEl = document.getElementById("fishboneImage");
