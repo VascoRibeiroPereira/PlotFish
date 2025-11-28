@@ -153,7 +153,7 @@
     </div>
     <p class="small-hint">
       Começa por descrever o problema, depois explora hipóteses por área (personagens, enredo, mundo, etc.).
-      No final, gera um resumo ou um diagrama fishbone para reveres ou reescreveres a cena.
+      No final, gera um resumo, um diagrama fishbone e define 1–3 mudanças concretas para testar na história.
     </p>
   </header>
 
@@ -191,10 +191,10 @@
 
   <!-- PASSO 3 -->
   <section class="card" style="margin-top:16px;">
-    <h2>Passo 3 · Resumo, imagem e guardar sessão</h2>
+    <h2>Passo 3 · Resumo, imagem e ficheiro</h2>
     <p class="small-hint">
       Gera um texto com o problema, as áreas onde suspeitas que está a falha e as hipóteses que
-      queres explorar. Podes também gerar uma imagem fishbone e guardar/carregar a sessão.
+      queres explorar. Podes também gerar uma imagem fishbone e exportar/importar o projeto como ficheiro.
     </p>
     <div style="display:flex;flex-wrap:wrap;gap:8px;">
       <button class="primary" type="button" onclick="generateSummary()">
@@ -205,12 +205,6 @@
       </button>
       <button class="secondary" type="button" onclick="generateFishboneImage()">
         🎨 Gerar imagem fishbone
-      </button>
-      <button class="secondary" type="button" onclick="saveSession()">
-        💾 Guardar sessão (este dispositivo)
-      </button>
-      <button class="secondary" type="button" onclick="loadSession(true)">
-        🔄 Repor sessão guardada
       </button>
       <button class="secondary" type="button" onclick="downloadSessionFile()">
         ⬇️ Exportar ficheiro
@@ -233,9 +227,38 @@
     />
 
     <label style="margin-top:10px;">
-      Resultado
+      Resultado (resumo do brainstorm)
       <textarea id="summaryBox" readonly></textarea>
     </label>
+  </section>
+
+  <!-- PASSO 4 -->
+  <section class="card" style="margin-top:16px;">
+    <h2>Passo 4 · O que vou mudar?</h2>
+    <p class="small-hint">
+      Depois de olhares para o resumo ou para o fishbone, escolhe 1–3 mudanças concretas que queres testar.
+      Mantém isto simples e acionável: cenas a reescrever, motivações a clarificar, stakes a aumentar, etc.
+    </p>
+
+    <label>
+      Mudança 1 a testar
+      <textarea id="change1" placeholder="Ex.: Reescrever a cena da morte da personagem X, mostrando as reações das outras personagens."></textarea>
+    </label>
+    <label>
+      Mudança 2 a testar (opcional)
+      <textarea id="change2" placeholder="Ex.: Clarificar o que o protagonista arrisca perder antes do clímax."></textarea>
+    </label>
+    <label>
+      Mudança 3 a testar (opcional)
+      <textarea id="change3" placeholder="Ex.: Cortar ou condensar a sequência no meio do livro que não avança o conflito."></textarea>
+    </label>
+
+    <button class="secondary" type="button" onclick="copyChangesPlan()">
+      📋 Copiar plano de mudanças
+    </button>
+    <p class="small-hint">
+      Dica: podes colar este plano diretamente no teu editor de texto ou numa nota ao lado da cena que vais trabalhar.
+    </p>
   </section>
 
   <!-- IMAGEM FISHBONE -->
@@ -252,8 +275,6 @@
 
   <script>
     "use strict";
-
-    const STORAGE_KEY = "plotfish_session_v1";
 
     // Áreas fixas (6 ramos)
     const AREAS = [
@@ -684,12 +705,17 @@
       }
     }
 
-    // --- Exportar / importar estado (para ficheiro) ---
+    // --- Exportar / importar estado (ficheiro) ---
     function exportState() {
       const state = {
         problem: document.getElementById("problemDescription").value || "",
         type: document.getElementById("problemType").value || "",
-        areas: {}
+        areas: {},
+        changes: {
+          change1: document.getElementById("change1").value || "",
+          change2: document.getElementById("change2").value || "",
+          change3: document.getElementById("change3").value || ""
+        }
       };
       AREAS.forEach(area => {
         const container = document.getElementById(`hypotheses-${area.id}`);
@@ -726,9 +752,13 @@
           });
         });
       }
+      if (state.changes) {
+        document.getElementById("change1").value = state.changes.change1 || "";
+        document.getElementById("change2").value = state.changes.change2 || "";
+        document.getElementById("change3").value = state.changes.change3 || "";
+      }
     }
 
-    // download do ficheiro JSON
     function downloadSessionFile() {
       const state = exportState();
       const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
@@ -771,50 +801,57 @@
       reader.readAsText(file);
     }
 
-    // --- Guardar / carregar sessão (localStorage opcional) ---
-    function saveSession() {
-      const state = exportState();
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        alert("Sessão guardada neste dispositivo.");
-      } catch (e) {
-        console.error("Erro ao guardar sessão", e);
-        alert("Não consegui guardar a sessão (o navegador pode estar a bloquear o armazenamento local).");
-      }
-    }
+    // --- Plano de mudanças (Passo 4) ---
+    function copyChangesPlan() {
+      const c1 = document.getElementById("change1").value.trim();
+      const c2 = document.getElementById("change2").value.trim();
+      const c3 = document.getElementById("change3").value.trim();
 
-    function loadSession(fromButton = false) {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        if (fromButton) alert("Não há sessão guardada neste dispositivo.");
+      if (!c1 && !c2 && !c3) {
+        alert("Escreve pelo menos uma mudança que queres testar.");
         return;
       }
-      try {
-        const state = JSON.parse(raw);
-        importState(state);
-        if (fromButton) alert("Sessão carregada.");
-      } catch (e) {
-        console.error("Erro ao carregar sessão", e);
-        if (fromButton) alert("Não consegui ler a sessão guardada.");
+
+      let lines = [];
+      lines.push("PLOT FISH – PLANO DE MUDANÇAS");
+      lines.push("=".repeat(36));
+      lines.push("");
+
+      if (c1) lines.push("Mudança 1 a testar: " + c1);
+      if (c2) lines.push("Mudança 2 a testar: " + c2);
+      if (c3) lines.push("Mudança 3 a testar: " + c3);
+
+      const text = lines.join("\n");
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(() => alert("Plano de mudanças copiado. Cola junto da cena que vais editar."))
+          .catch(err => {
+            console.error("Erro a copiar plano", err);
+            fallbackCopy(text);
+          });
+      } else {
+        fallbackCopy(text);
       }
     }
 
-    // --- limpar ---
+    // --- limpar tudo ---
     function clearAll() {
-      if (!confirm("Queres mesmo limpar tudo? Isto apaga o problema, as hipóteses, o resumo e a sessão guardada.")) return;
+      if (!confirm("Queres mesmo limpar tudo? Isto apaga o problema, as hipóteses, o resumo e o plano de mudanças.")) return;
       document.getElementById("problemDescription").value = "";
       document.getElementById("problemType").value = "";
       document.getElementById("summaryBox").value = "";
       document.getElementById("fishboneSection").style.display = "none";
       document.getElementById("fishboneImage").src = "";
-      localStorage.removeItem(STORAGE_KEY);
+      document.getElementById("change1").value = "";
+      document.getElementById("change2").value = "";
+      document.getElementById("change3").value = "";
       initAreas();
     }
 
     // --- init ---
     (function initApp() {
       initAreas();
-      loadSession(false); // tenta carregar sessão anterior em silêncio
     })();
   </script>
 </body>
